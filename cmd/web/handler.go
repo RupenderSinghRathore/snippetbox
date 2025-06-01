@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"text/template"
 )
@@ -41,5 +42,6 @@ func (app *application) createPost(w http.ResponseWriter, r *http.Request) {
 }
 func (app *application) internalSeverError(w http.ResponseWriter, err error) {
 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	app.logger.Error(err.Error())
+	trace := string(debug.Stack())
+	app.logger.Error(err.Error(), "trace", trace)
 }
