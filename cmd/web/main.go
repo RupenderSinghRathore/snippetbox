@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"fmt"
 
 	"log/slog"
 	"net/http"
@@ -45,8 +44,8 @@ func dataBaseConn(dsn string) (*sql.DB, error) {
 		return nil, err
 	}
 	err = db.Ping()
-	defer db.Close()
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 	return db, nil
