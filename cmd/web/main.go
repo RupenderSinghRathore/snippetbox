@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"html/template"
+	"runtime/debug"
 
 	"log/slog"
 	"net/http"
@@ -13,8 +15,9 @@ import (
 )
 
 type application struct {
-	logger   slog.Logger
-	snippets *models.SnippetModel
+	logger        slog.Logger
+	snippets      *models.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func main() {
@@ -24,17 +27,26 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	db, err := dataBaseConn(*dsn)
 	if err != nil {
-		logger.Error(err.Error())
+		trace := string(debug.Stack())
+		logger.Error(err.Error(), "trace", trace)
 		os.Exit(1)
 	}
 	defer db.Close()
+	templateCache, err := newTemplateCache()
+	if err != nil {
+		trace := string(debug.Stack())
+		logger.Error(err.Error(), "trace", trace)
+		os.Exit(1)
+	}
 	app := application{
-		logger:   *logger,
-		snippets: &models.SnippetModel{DB: db},
+		logger:        *logger,
+		snippets:      &models.SnippetModel{DB: db},
+		templateCache: templateCache,
 	}
 	app.logger.Info("Server starting..", "port", *port)
 	if err := http.ListenAndServe(*port, app.serverRouter()); err != nil {
-		app.logger.Error(err.Error())
+		trace := string(debug.Stack())
+		app.logger.Error(err.Error(), "trace", trace)
 	}
 }
 

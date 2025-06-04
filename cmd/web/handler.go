@@ -11,27 +11,14 @@ import (
 )
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
-	// r.Header.Add("Server", "Go")
-	// files := []string{
-	// 	"./ui/html/base.tmpl",
-	// 	"./ui/html/pages/home.tmpl",
-	// 	"./ui/html/partials/nav.tmpl",
-	// }
-	// ts, err := template.ParseFiles(files...)
-	// if err != nil {
-	// 	app.internalSeverError(w, err)
-	// 	return
-	// }
-	// if err := ts.ExecuteTemplate(w, "base", nil); err != nil {
-	// 	app.internalSeverError(w, err)
-	// 	return
-	// }
 	snippets, err := app.snippets.Latest()
 	if err != nil {
-		app.internalSeverError(w, err)
+		app.serverError(w, err)
 		return
 	}
-	fmt.Fprintf(w, "%+d", snippets)
+	data := app.newTemplateData()
+	data.Snippets = snippets
+	app.render(w, r, http.StatusOK, "home.tmpl", data)
 }
 
 func (app *application) view(w http.ResponseWriter, r *http.Request) {
@@ -40,16 +27,18 @@ func (app *application) view(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Snippet not found", http.StatusBadRequest)
 		return
 	}
-	s, err := app.snippets.Get(id)
+	snippet, err := app.snippets.Get(id)
 	if err != nil {
 		if errors.Is(err, models.ErrNoRecord) {
 			http.NotFound(w, r)
 		} else {
-			app.internalSeverError(w, err)
+			app.serverError(w, err)
 		}
 		return
 	}
-	fmt.Fprintf(w, "%+v", s)
+	data := app.newTemplateData()
+	data.Snippet = snippet
+	app.render(w, r, http.StatusOK, "view.tmpl", data)
 }
 
 func (app *application) create(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +54,7 @@ func (app *application) createPost(w http.ResponseWriter, r *http.Request) {
 	// ID of the new record back.
 	id, err := app.snippets.Insert(title, content, expires)
 	if err != nil {
-		app.internalSeverError(w, err)
+		app.serverError(w, err)
 		title := "O snail"
 		content := "O snail\nClimb Mount Fuji,\nBut slowly, slowly!\n\n– Kobayashi Issa"
 		expires := 7
@@ -74,7 +63,7 @@ func (app *application) createPost(w http.ResponseWriter, r *http.Request) {
 		// ID of the new record back.
 		id, err := app.snippets.Insert(title, content, expires)
 		if err != nil {
-			app.internalSeverError(w, err)
+			app.serverError(w, err)
 			return
 		}
 
@@ -86,7 +75,7 @@ func (app *application) createPost(w http.ResponseWriter, r *http.Request) {
 	// Redirect the user to the relevant page for the snippet.
 	http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id), http.StatusSeeOther)
 }
-func (app *application) internalSeverError(w http.ResponseWriter, err error) {
+func (app *application) serverError(w http.ResponseWriter, err error) {
 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	trace := string(debug.Stack())
 	app.logger.Error(err.Error(), "trace", trace)
